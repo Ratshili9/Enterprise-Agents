@@ -1,0 +1,17 @@
+OrderID,Product,Category,Price,Quantity,OrderDate
+1,Laptop,Electronics,1200.00,1,2025-01-01
+2,Coffee,Food,20.00,3,2025-01-02
+3,Monitor,Electronics,300.00,2,2025-01-03
+4,Bread,Food,4.00,10,2025-01-04
+5,Keyboard,Electronics,150.00,1,2025-01-05
+6,Apple,Food,1.00,50,2025-01-06
+7,Laptop,Electronics,1200.00,1,2025-01-07
+8,Monitor,Electronics,300.00,2,2025-01-08
+9,Coffee,Food,20.00,5,2025-01-09
+10,Mouse,Electronics,50.00,1,2025-01-10
+11,Apple,Food,1.00,100,2025-01-11
+12,Laptop,Electronics,1200.00,1,2025-01-12
+13,Coffee,Food,20.00,3,2025-01-13
+14,Tablet,Electronics,400.00,2,2025-01-14
+15,Monitor,Electronics,,1,2025-01-15
+16,Bread,Food,4.00,,2025-01-16
