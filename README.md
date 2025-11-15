@@ -46,188 +46,89 @@ one agent cleans the data, another analyzes it, another writes the report.
 
 This produces better insights, faster, and more reliably than a single agent or a static script.
 
-# What I Created (Architecture Overview)
 
-My system is called EDAMAS — Enterprise Data Analyst Multi-Agent System.
+# Enterprise Data Analysis Agent Pipeline
+This project showcases a powerful multi-agent system designed for end-to-end data analysis. It automates data preparation, external market research, internal insight generation, visualization, and professional report writing using a combination of sequential and parallel processing.
 
-It contains five main agents, each with a specialized role:
+# Architecture & Agent Roles
+The pipeline executes in four distinct phases, ensuring data quality is established before parallel processing begins.
 
-## 1. Data Profiler Agent
+Phase	               |  Agent Name	          | Core Functionality
+1. Sequential\n Setup	 | Data Profiler Agent	| Reads raw CSV, generates a statistical data profile, and validates initial quality.
+   
+3. Sequential Setup	| Data Cleaner Agent	| Handles nulls (NaN), removes duplicates, and enforces correct data types (e.g., Price, Quantity) for downstream calculations.
+   
+3A. Parallel Execution |	Internal Insights Agent |	Analyzes the cleaned data profile and historical context from the memory bank to generate LLM-powered business insights.
 
-Reads the dataset
+3B. Parallel Execution |	External Context Agent | Performs a targeted Google Search to acquire current market trends relevant to the data (e.g., Electronics, Food industries).
 
-Detects column types
+3C. Parallel Execution |	Visualization Agent	| Generates key business charts (sales_trend.png, top_products.png) using Matplotlib, with robust logic for finding sales and date columns.
 
-Generates summary statistics
+5. Sequential Report |	Report Writer Agent |	Consolidates ALL outputs (plots, insights, context) and uses the LLM to write a comprehensive, final analysis report.
 
-Identifies missing values and anomalies
+# ⚙️ Setup & Execution
 
-##2. Data Cleaner Agent
+## 1. PrerequisitesPython 3.9+ installed.
+## 2. Git installed (for cloning and pushing).
+## 3. A Gemini API Key is required for the LLM agents.
 
-Fixes missing or inconsistent values
+# 2. Environment Setup
 
-Handles duplicates
+Clone the repository and install the required libraries within a virtual environment (venv is recommended)
 
-Normalizes column formats
+:Bash# Clone the repository (if you haven't already)
+git clone <your-repo-url>
+cd Enterprise-Agents
 
-Produces a cleaned dataset
+#  Create and activate the virtual environment
 
-## 3. Insights Agent
+python -m venv venv
+.\venv\Scripts\activate# Use 'source venv/bin/activate' on Linux/macOS
 
-Detects correlations
+#  Install dependencies
+pip install -r requirements.txt
 
-Finds trends or seasonality
+# 3. Configuration & DataEnsure 
+### your necessary files and folders exist:
 
-Generates natural-language insights
+File/Folder | 	Path	  |  Purpose	|  Initialization		
 
-Identifies outliers and patterns
+Data File   | 	data/sales_data.csv |	Input data for analysis.	| Must be manually populated.		
 
-## 4. Visualization Agent
+Output Folder	| reports/	| Main output directory.	| Created by initial setup.		
 
-Creates charts automatically (bar charts, line charts, histograms, correlation heatmaps)
+Plot Folder | 	reports/plots/	| Directory for charts.	| Created automatically by the Visualization Agent.		
 
-Returns them to the user
+Memory Bank |	reports/memory_bank.json |	Stores historical insights.	| Must be initialized with {"past_insights": []}.		
 
-Uses Python execution tools for rendering
+# 4. API Key
+## Set your Gemini API key as an environment variable in your terminal session. This must be done every time you open a new terminal.
 
-## 5. Report Writer Agent
+Bash# For PowerShell (Windows)
+$env:GEMINI_API_KEY="AIzaSy...YOUR...KEY...HERE"
 
-Combines all insights
+# Running the Pipeline
+Execute the code using the single command below. The terminal output will trace the progress of the sequential and parallel agents.
+The Execution Command Bash#  python run_pipeline.py
+ 
+# Expected Output Flow
+A successful run confirms that all phases have been completed, culminating in the final markdown report
+....
+=== 3C. PARALLEL: Visualization Agent Running ===
 
-Generates a structured business report
+--- [TOOL:Viz] Plotting sales over time to reports\plots\sales_trend.png ---
 
-Creates recommendations for decision-makers
+Calculated TotalSale using Price * Quantity.
 
-# Message Flow
+--- [TOOL:Viz] Plotting top products to reports\plots\top_products.png ---
 
-User uploads a CSV and asks a question.
+Visualization Agent Finished.
+...
+=== 4. SEQUENTIAL: Report Writer Agent Running ===
+Report Writer Agent Finished. Report saved to reports\final_analysis_report.md
 
-Data Profiler Agent analyzes structure.
+--- ✅ Enterprise Data Analysis Pipeline Finished ---
 
-Data Cleaner Agent prepares dataset.
+### Final Report saved to: reports\final_analysis_report.md
 
-Insights Agent performs reasoning.
-
-Visualization Agent creates graphs.
-
-Report Agent summarizes everything into a polished business PDF-style output.
-
-Agents communicate using the built-in A2A multi-agent protocol.
-
-# Tools Used
-
-I built custom tools for:
-
-loading CSV files
-
-data profiling
-
-cleaning functions
-
-chart generation
-
-basic machine-learning modeling
-
-Plus ADK built-in tools:
-
-code execution
-
-memory
-
-Google search (optional)
-
-long-running operation pause/approval
-
-# Memory
-
-I used:
-
-InMemorySessionService for agent state
-
-Memory Bank to store dataset metadata across the entire workflow
-(column types, cleaning actions, discovered insights, etc.)
-
-This makes the system feel consistent and "intelligent" across multiple requests.
-
-# Observability
-
-I implemented:
-
-structured logging for each agent
-
-run-time metrics (rows, columns, missing counts, charts generated)
-
-trace identifiers for delegations
-
-clear output structure for debugging
-
-This makes the project production-ready.
-
-# Demo
-
-The demo video shows:
-
-User uploads sales.csv
-
-Profiler Agent summarizes the dataset
-
-Cleaner Agent fixes missing values
-
-Insights Agent discovers:
-
-top-selling categories
-
-monthly revenue patterns
-
-customer retention segments
-
-Visualization Agent generates:
-
-revenue over time chart
-
-product category distribution
-
-correlation heatmap
-
-Report Agent outputs a final business report including recommendations
-
-All of this happens automatically in a single multi-agent flow.
-
-# The Build
-Technologies Used
-
-Python 3.10
-
-Google Agents Developer Kit (ADK)
-
-Gemini 2.0 Flash & Pro
-
-Pandas / NumPy
-
-Matplotlib
-
-Streamlit (for optional UI)
-
-# Engineering Decisions
-
-I used multiple specialized agents instead of one general agent to improve reliability and structure.
-
-I avoided overly complex ML models to ensure determinism and stability.
-
-I built custom data tools instead of relying only on LLM reasoning.
-
-I added well-documented folder structure and diagrams.
-
-# System Strengths
-
-Works on any CSV file
-
-Produces insights in seconds
-
-Fully autonomous
-
-Easy to extend with new agents
-
-Easy to deploy
-
-High reliability due to agent specialization
+### Check the reports/ directory for your final analysis report and generated plots!
