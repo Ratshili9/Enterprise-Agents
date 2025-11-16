@@ -1,121 +1,134 @@
-# tools/visualization_tools.py (The Corrected, Robust Version)
-import matplotlib
-matplotlib.use("Agg")
-
+import pandas as pd
 import numpy as np
 import os
-import seaborn as sns
 import matplotlib.pyplot as plt
-import pandas as pd
+import seaborn as sns
 
+# Define the output directory
+PLOT_DIR = "reports/plots"
 
-def plot_sales_over_time(df, save_path):
+def find_best_columns(df: pd.DataFrame):
+    """Identifies the best numeric column (target) and best categorical column (group) dynamically."""
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    
+    # Prioritize 'charges' or the column with the highest variance if 'charges' is not found
+    target_col = None
+    if 'charges' in numeric_cols:
+        target_col = 'charges'
+    elif numeric_cols:
+        # Pick the numeric column with the highest number of unique values (most descriptive)
+        numeric_uniques = {col: df[col].nunique() for col in numeric_cols}
+        target_col = max(numeric_uniques, key=numeric_uniques.get)
+        
+    # Find the best categorical column (high cardinality, but not too high)
+    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    group_col = None
+    
+    if categorical_cols:
+        # Filter columns that have between 2 and 10 unique values (good for group-by analysis)
+        suitable_categories = [
+            col for col in categorical_cols if 2 <= df[col].nunique() <= 10
+        ]
+        
+        # Prioritize 'region' or 'smoker' if present, otherwise take the first suitable one
+        if 'region' in suitable_categories:
+            group_col = 'region'
+        elif 'smoker' in suitable_categories:
+            group_col = 'smoker'
+        elif suitable_categories:
+            group_col = suitable_categories[0]
+            
+    if not target_col:
+        print("Visualization Error: No suitable numeric column found.")
+        return None, None
+        
+    return target_col, group_col
+
+def create_time_series_plot(df: pd.DataFrame, target_col: str) -> str:
     """
-    Generates a sales trend plot, making the function robust against 
-    inconsistent column names and ensuring the output directory exists.
+    Generates a simple time series plot of the target column if a date column exists.
+    For this generic pipeline, we'll skip if no obvious date column exists.
     """
-    print(f"--- [TOOL:Viz] Plotting sales over time to {save_path} ---")
-
-    # 1. CRITICAL FIX: Ensure output directory exists before saving
-    # os.path.dirname(save_path) extracts 'reports/plots'
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    # 2. CRITICAL FIX: Clean up ALL column names to prevent KeyErrors
-    df.columns = df.columns.str.strip()
-
-    # 3. Convert all numeric-looking columns from strings to numbers
-    # We must operate on a copy of the dataframe slice to avoid SettingWithCopyWarning
-    df_plot = df.copy()
-    for col in df_plot.columns:
-        # Note: Using errors='coerce' is generally safer than 'ignore' for cleaning
-        df_plot[col] = pd.to_numeric(df_plot[col], errors='coerce')
-
-    # --- Sales Calculation Logic (More robust than picking the first numeric column) ---
-
-    # Identify price-like and quantity-like columns
-    price_col = next((col for col in df_plot.columns if 'price' in col.lower(
-    ) or 'cost' in col.lower() and df_plot[col].dtype in [np.float64, np.int64]), None)
-    quantity_col = next((col for col in df_plot.columns if 'quantity' in col.lower(
-    ) or 'units' in col.lower() and df_plot[col].dtype in [np.float64, np.int64]), None)
-
-    if price_col and quantity_col:
-        df_plot['TotalSale'] = df_plot[price_col] * df_plot[quantity_col]
-        sales_col = 'TotalSale'
-        print(f"Calculated TotalSale using {price_col} * {quantity_col}.")
-    else:
-        # Fallback: Use the largest available numeric column if TotalSale cannot be calculated
-        numeric_cols = df_plot.select_dtypes(
-            include=['int64', 'float64']).columns.tolist()
-        if not numeric_cols:
-            raise ValueError("No numeric columns found. Cannot plot sales.")
-
-        # Pick the column with the largest max value, assuming it's the sales column
-        sales_col = df_plot[numeric_cols].max().idxmax()
-        print(f"Warning: Using single column '{sales_col}' as sales amount.")
-
-    # --- Date Detection Logic ---
-
-    date_col = None
-    for col in df_plot.columns:
-        if "date" in col.lower():
-            date_col = col
-            # Ensure the date column is in datetime format
-            df_plot[date_col] = pd.to_datetime(
-                df_plot[date_col], errors='coerce')
-            break
-
-    if date_col is None:
-        # Create artificial index if no date column
-        df_plot["__index"] = range(len(df_plot))
-        date_col = "__index"
-
-    # --- Plotting ---
-
-    # Aggregate sales by date for a clearer trend line
-    if date_col != "__index":
-        daily_sales = df_plot.groupby(date_col)[sales_col].sum().reset_index()
-        daily_sales.plot(x=date_col, y=sales_col, figsize=(10, 6))
-    else:
-        df_plot.plot(x=date_col, y=sales_col, figsize=(10, 6))
-
-    plt.title(f"Sales Trend: {sales_col}")
-    plt.xlabel(date_col.replace('_', ' ').title())
-    plt.ylabel(sales_col.replace('_', ' ').title())
-    plt.grid(True)
-    plt.savefig(save_path)
-    plt.close()
-
-    return save_path
+    print(f"--- [TOOL:Viz] Creating Time Series Plot for {target_col} (Skipping for insurance.csv)---")
+    
+    # Since insurance.csv has no date column, we'll skip time series analysis.
+    # In a real pipeline, we would look for a date column and aggregate daily data.
+    return "N/A: Data is cross-sectional (no date/time column)."
 
 
-def plot_top_products(df: pd.DataFrame, output_path: str) -> str:
-    """Plots the top 5 products by revenue using a smart fallback for sales calculation."""
-    print(f"--- [TOOL:Viz] Plotting top products to {output_path} ---")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+def create_categorical_comparison_plot(df: pd.DataFrame, target_col: str, group_col: str) -> str:
+    """
+    Generates a bar plot comparing the mean of the target_col across categories in group_col.
+    """
+    if not target_col or not group_col:
+        return "N/A: Missing suitable target or group column for categorical plot."
+        
+    print(f"--- [TOOL:Viz] Creating Categorical Comparison Plot: {target_col} by {group_col} ---")
+    
+    try:
+        # Calculate mean target (charges) per group (e.g., region)
+        plot_data = df.groupby(group_col)[target_col].mean().sort_values(ascending=False).reset_index()
 
-    numeric_cols = df.select_dtypes(
-        include=['int64', 'float64']).columns.tolist()
+        plt.figure(figsize=(10, 6))
+        sns.barplot(
+            x=group_col, 
+            y=target_col, 
+            data=plot_data, 
+            palette="viridis"
+        )
+        
+        # Formatting
+        plt.title(f'Average {target_col.title()} by {group_col.title()}')
+        plt.xlabel(group_col.title())
+        plt.ylabel(f'Average {target_col.title()}')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
 
-    if len(numeric_cols) < 2:
-        if len(numeric_cols) == 1:
-            sales_col = numeric_cols[0]
-            df['TotalSale'] = df[sales_col]
-        else:
-            raise ValueError(
-                "No suitable numeric columns found for plotting product revenue.")
-    else:
-        col1, col2 = numeric_cols[0], numeric_cols[1]
-        df['TotalSale'] = df[col1] * df[col2]
+        # Save the plot
+        file_name = f"avg_{target_col}_by_{group_col}.png"
+        output_path = os.path.join(PLOT_DIR, file_name)
+        plt.savefig(output_path)
+        plt.close()
 
-    top_products = df.groupby(
-        'Product')['TotalSale'].sum().nlargest(5).reset_index()
+        return output_path
+        
+    except Exception as e:
+        return f"N/A: Error creating categorical plot: {e}"
 
-    # --- The rest of the function remains the same ---
-    plt.figure(figsize=(10, 6))
-    sns.barplot(data=top_products, x='TotalSale', y='Product', orient='h')
-    plt.title('Top 5 Products by Revenue (Calculated)')
-    plt.xlabel('Total Revenue')
-    plt.ylabel('Product')
-    plt.savefig(output_path)
-    plt.close()
-    return output_path
+
+def create_correlation_heatmap(df: pd.DataFrame) -> str:
+    """
+    Generates a heatmap of numeric column correlations.
+    """
+    print("--- [TOOL:Viz] Creating Correlation Heatmap ---")
+    
+    try:
+        numeric_df = df.select_dtypes(include=[np.number])
+        if numeric_df.shape[1] < 2:
+            return "N/A: Not enough numeric columns (less than 2) for correlation analysis."
+            
+        corr_matrix = numeric_df.corr()
+
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(
+            corr_matrix, 
+            annot=True, 
+            cmap='coolwarm', 
+            fmt=".2f", 
+            linewidths=.5, 
+            linecolor='black'
+        )
+        
+        plt.title('Numeric Feature Correlation Heatmap')
+        plt.tight_layout()
+
+        # Save the plot
+        output_path = os.path.join(PLOT_DIR, "correlation_heatmap.png")
+        plt.savefig(output_path)
+        plt.close()
+
+        return output_path
+        
+    except Exception as e:
+        return f"N/A: Error creating heatmap: {e}"

@@ -1,0 +1,21 @@
+{
+    "profile": {
+        "missing_values": {
+            "age": 0,
+            "sex": 0,
+            "bmi": 0,
+            "children": 0,
+            "smoker": 0,
+            "region": 0,
+            "charges": 0
+        },
+        "dtypes": {
+            "age": "int64",
+            "sex": "object",
+            "bmi": "float64",
+            "children": "int64",
+            "smoker": "object",
+            "region": "object",
+            "charges": "float64"
+        },
+        "duplicates": 

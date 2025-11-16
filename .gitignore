@@ -1,0 +1,17 @@
+# Python artifacts
+__pycache__
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+
+# Environment and API Keys (CRITICAL!)
+.env
+config.py  
+*.log
+
+# Sensitive or Generated Files
+reports/
+!reports/memory_bank.json 
+!reports/plots/
+!reports/final_analysis_report.md

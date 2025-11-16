@@ -1,81 +1,157 @@
+import argparse
 import os
-import shutil
 from concurrent.futures import ThreadPoolExecutor
 
-from config import DATA_FILE, REPORT_DIR, FINAL_REPORT_FILE
+# === Agents ===
 from agents.data_profiler_agent import DataProfilerAgent
 from agents.data_cleaner_agent import DataCleanerAgent
-from agents.internal_insights_agent import InternalInsightsAgent
-from agents.external_context_agent import ExternalContextAgent
+# Corrected Agent Imports for Parallel Execution
+from agents.internal_insights_agent import InternalInsightsAgent 
+from agents.external_context_agent import ExternalContextAgent 
 from agents.visualization_agent import VisualizationAgent
+from agents.ml_agent import MLAgent
+from agents.recommendation_agent import RecommendationAgent
 from agents.report_writer_agent import ReportWriterAgent
-import agents.llm_client # Ensure LLM is configured
 
+
+# ======================================================
+# 1. CLI ARGUMENT PARSER
+# ======================================================
+def parse_args():
+    parser = argparse.ArgumentParser(description="Enterprise AI Pipeline")
+    parser.add_argument(
+        "--file",
+        type=str,
+        required=True,
+        help="Path to input CSV file"
+    )
+    return parser.parse_args()
+
+
+# ======================================================
+# 2. ENVIRONMENT SETUP
+# ======================================================
 def setup_environment():
-    """Create necessary directories and clean up old reports."""
-    os.makedirs(REPORT_DIR, exist_ok=True)
-    if os.path.exists(FINAL_REPORT_FILE):
-        os.remove(FINAL_REPORT_FILE)
-    if os.path.exists(os.path.join(REPORT_DIR, 'plots')):
-        shutil.rmtree(os.path.join(REPORT_DIR, 'plots'))
-    print(f"--- Environment Setup Complete: {REPORT_DIR} prepared. ---")
+    # Ensure all new and old report folders exist
+    os.makedirs("reports", exist_ok=True)
+    os.makedirs("reports/plots", exist_ok=True)
+    os.makedirs("reports/ml", exist_ok=True) # New ML output folder
+    
+    memory_path = "reports/memory_bank.json"
 
+    if not os.path.exists(memory_path):
+        # Initialize memory bank if missing
+        with open(memory_path, "w") as f:
+            f.write('{"past_insights": []}') 
+
+    # Clear old report files before a new run
+    if os.path.exists("reports/final_analysis_report.md"):
+        os.remove("reports/final_analysis_report.md")
+    
+    print("--- Environment Setup Complete: reports prepared. ---")
+
+
+# ======================================================
+# 3. RUN WRAPPER FOR PARALLEL AGENTS
+# ======================================================
 def run_agent_wrapper(agent_class, context):
-    """Wrapper function to run an agent instance."""
-    return agent_class().run(context)
+    try:
+        # Run agent instance and return success status
+        return agent_class().run(context)
+    except Exception as e:
+        print(f"Error in {agent_class.__name__}: {str(e)}")
+        # Return False or None to indicate failure
+        return False
 
+
+# ======================================================
+# 4. MAIN PIPELINE
+# ======================================================
 def main():
-    if agents.llm_client.LLM_MODEL is None:
-        print("Pipeline aborted: LLM configuration failed.")
-        return
-        
+    # Placeholder for LLM Client Configuration (assuming it's here in the full file)
+    # print("--- LLM Client configured successfully ---")
+    
+    args = parse_args()
+    csv_path = args.file
+
     setup_environment()
-    
-    # Session Memory
-    context = {}
-    
-    # --- 1. Sequential Phase ---
-    # Agent 1: Data Profiler
-    if not DataProfilerAgent().run(context, DATA_FILE):
+
+    # Shared session state
+    context = {
+        "data_path": csv_path,
+        # Initialize other context variables if needed, e.g., 'ml_reports': {}
+    }
+
+    # ==================================================
+    # Step 1 — Sequential: Profiler Agent
+    # ==================================================
+    print("\n=== 1. SEQUENTIAL: Data Profiler Agent Running ===")
+    if not DataProfilerAgent().run(context):
+        print("Profiler Agent failed. Aborting.")
         return
-        
-    # Agent 2: Data Cleaner
+    print("Profiler Agent Finished.")
+
+    # ==================================================
+    # Step 2 — Sequential: Data Cleaner Agent
+    # ==================================================
+    print("\n=== 2. SEQUENTIAL: Data Cleaner Agent Running ===")
     if not DataCleanerAgent().run(context):
+        print("Data Cleaner Agent failed. Aborting.")
         return
-        
-    # --- 2. Parallel Phase (Fan-out) ---
-    print("\n\n=== 3. PARALLEL EXECUTION: Running Insights, Search, and Viz concurrently ===")
-    
+    print("Cleaner Agent Finished.")
+
+    # ==================================================
+    # Step 3 — Parallel: Insights, Search, Visualization
+    # ==================================================
+    print("\n\n=== 3. PARALLEL EXECUTION: Insights / Search / Viz ===")
+
     parallel_agents = [
-        InternalInsightsAgent, 
-        ExternalContextAgent, 
+        InternalInsightsAgent, # Renamed from InsightsAgent
+        ExternalContextAgent,  # Renamed from SearchAgent
         VisualizationAgent
     ]
-    
+
     with ThreadPoolExecutor(max_workers=3) as executor:
-        # Submit each agent to the executor. Each agent receives the *same* context dictionary reference.
-        futures = [executor.submit(run_agent_wrapper, agent, context) for agent in parallel_agents]
-        
-        # Wait for all parallel tasks to complete
-        results = [f.result() for f in futures]
-        
-        if not all(results):
-            print("\nPipeline stopped: One or more parallel agents failed.")
-            return
+        futures = [
+            executor.submit(run_agent_wrapper, agent, context)
+            for agent in parallel_agents
+        ]
+        results = [f.result() for f in futures] # Wait for all results
+    
+    if all(results):
+        print("Parallel Agents Finished.")
+    else:
+        print("Warning: One or more parallel agents failed.")
 
-    # --- 3. Sequential Phase (Fan-in) ---
-    # Agent 4: Report Writer
-    if not ReportWriterAgent().run(context):
-        return
+    # ==================================================
+    # Step 4 — ML Agent (Sequential)
+    # ==================================================
+    print("\n=== 4. SEQUENTIAL: ML Agent Running ===")
+    ml_agent = MLAgent()
+    if not ml_agent.run(context):
+        print("ML Agent failed. Aborting recommendations.")
+    else:
+        print("ML Agent Finished.")
+        
+        # ==================================================
+        # Step 5 — Recommendation Agent (Sequential)
+        # ==================================================
+        print("\n=== 5. SEQUENTIAL: Recommendation Agent Running ===")
+        rc_agent = RecommendationAgent()
+        if not rc_agent.run(context):
+            print("Recommendation Agent failed.")
+        else:
+            print("Recommendation Agent Finished.")
 
-    # --- Final Output ---
-    print("\n\n--- ✅ Enterprise Data Analysis Pipeline Finished ---")
-    print(f"Final Report saved to: {FINAL_REPORT_FILE}")
-    print("\n--- Summary of State (Session Memory) ---")
-    print(f"Total keys in context: {len(context)}")
-    print(f"Internal Insights generated? {'key_insights' in context}")
-    print(f"External Context acquired? {'external_context' in context}")
-    print(f"Plots created: {len(context.get('plot_paths', []))}")
+
+    # ==================================================
+    # Step 6 — Report Writer
+    # ==================================================
+    print("\n=== 6. Report Writer Agent Running ===")
+    ReportWriterAgent().run(context)
+    print("Report Writer Agent Finished.")
+    print("\n--- ✅ Enterprise Data Analysis Pipeline Finished ---")
+    print("Final Report saved to: reports/final_analysis_report.md")
 
 
 if __name__ == "__main__":

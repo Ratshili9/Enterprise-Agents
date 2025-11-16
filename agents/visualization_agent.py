@@ -1,29 +1,54 @@
-from tools.visualization_tools import plot_sales_over_time, plot_top_products
-from config import PLOTS_DIR
 import os
-
+from tools.visualization_tools import (
+    find_best_columns,
+    create_time_series_plot,
+    create_categorical_comparison_plot,
+    create_correlation_heatmap
+)
 
 class VisualizationAgent:
+    """
+    The Visualization Agent generates and saves key diagnostic and summary plots.
+    It now uses a column-agnostic approach based on data type and count.
+    """
+    def __init__(self):
+        # Clear old plots before starting
+        if os.path.exists("reports/plots"):
+            for f in os.listdir("reports/plots"):
+                os.remove(os.path.join("reports/plots", f))
+        
     def run(self, context: dict) -> bool:
-        """Generates plots from 'cleaned_df' and saves 'plot_paths'."""
-        print("\n=== 3C. PARALLEL: Visualization Agent Running ===")
+        print("🎨 [Viz] Starting Visualization Agent...")
+        
         if 'cleaned_df' not in context:
+            print("Visualization Agent Error: Cleaned DataFrame not found in context.")
             return False
 
-        df = context['cleaned_df']
-        plot_paths = []
+        df_clean = context['cleaned_df']
+        
+        # 1. Dynamically find the best columns
+        target_col, group_col = find_best_columns(df_clean)
+        
+        if not target_col:
+            print("Visualization Agent Warning: Could not find a suitable numeric column to plot.")
+            context['plot_paths'] = {"status": "Failed due to missing numeric data."}
+            return False
 
-        # Generate plots and collect their file paths
-        sales_path = plot_sales_over_time(
-            df, os.path.join(PLOTS_DIR, 'sales_trend.png'))
-        if sales_path:
-            plot_paths.append(sales_path)
+        plot_paths = {}
 
-        products_path = plot_top_products(
-            df, os.path.join(PLOTS_DIR, 'top_products.png'))
-        if products_path:
-            plot_paths.append(products_path)
+        # 2. Time Series Plot (will skip for insurance.csv, but remains for flexibility)
+        plot_paths['time_series'] = create_time_series_plot(df_clean, target_col)
+        
+        # 3. Categorical Comparison Plot (e.g., Average charges by region)
+        if group_col:
+            plot_paths['categorical_comparison'] = create_categorical_comparison_plot(df_clean, target_col, group_col)
+        else:
+            plot_paths['categorical_comparison'] = "N/A: No suitable categorical column found."
 
+        # 4. Correlation Heatmap
+        plot_paths['correlation_heatmap'] = create_correlation_heatmap(df_clean)
+        
         context['plot_paths'] = plot_paths
-        print("Visualization Agent Finished.")
+        
+        print("✅ [Viz] Visualization complete.")
         return True

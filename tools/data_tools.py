@@ -1,62 +1,48 @@
 import pandas as pd
-from io import StringIO
-import os
-
+import numpy as np
 
 def load_data(csv_path: str) -> pd.DataFrame:
-    """Loads a CSV file into a pandas DataFrame."""
+    """Loads a CSV file from the given path."""
     print(f"--- [TOOL:Data] Loading data from {csv_path} ---")
-
     try:
-        with open(csv_path, 'r', encoding='latin-1') as f:
-            # Added: header=0 to guarantee the first row is the header
-            # Added: skipinitialspace=True to handle spaces after delimiters
-            df = pd.read_csv(f, header=0, skipinitialspace=True)
+        df = pd.read_csv(csv_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"CSV file not found at path: {csv_path}")
+    
+    # Simple check for 'charges' or 'TotalSale' to ensure it's numeric for cleaning
+    if 'charges' in df.columns:
+        df['charges'] = pd.to_numeric(df['charges'], errors='coerce')
+    
+    return df
 
-        # Guarantee header names are clean by stripping whitespace
-        df.columns = df.columns.str.strip()
+def clean_data(df_raw: pd.DataFrame) -> pd.DataFrame:
+    """Performs basic data cleaning (imputation, dropping duplicates)."""
+    df = df_raw.copy()
+    
+    # Impute missing numeric data with the mean
+    for col in df.select_dtypes(include=[np.number]).columns:
+        df[col] = df[col].fillna(df[col].mean())
+        
+    # Drop rows with remaining NaNs (usually from object/string columns)
+    df.dropna(inplace=True)
+    
+    # Ensure charges (our target) is numeric
+    if 'charges' in df.columns:
+        df['charges'] = pd.to_numeric(df['charges'], errors='coerce')
+        df.dropna(subset=['charges'], inplace=True)
+        
+    # Drop duplicates
+    df.drop_duplicates(inplace=True)
+    
+    return df
 
-        # Ensure OrderDate is correctly converted
-        df['OrderDate'] = pd.to_datetime(df['OrderDate'], errors='coerce')
-        return df
-
-    except Exception as e:
-        print(f"Error loading data: {e}")
-        return None
-
-
-def get_data_profile(df: pd.DataFrame) -> str:
-    """Generates a high-level text profile of the DataFrame."""
-    print("--- [TOOL:Data] Generating data profile ---")
-    buffer = StringIO()
-    df.info(buf=buffer)
-    info_str = buffer.getvalue()
-
-    profile = "### Data Profile Report ###\n\n"
-    profile += info_str
-    profile += "\n\n2. Descriptive Statistics (Numerical):\n"
-    # Include non-numeric summary
-    profile += df.describe(include='all').to_string()
+def get_data_profile(df: pd.DataFrame) -> dict:
+    """Generates a basic data profile summary."""
+    profile = {
+        "shape": df.shape,
+        "columns": list(df.columns),
+        "data_types": df.dtypes.astype(str).to_dict(),
+        "missing_values": df.isnull().sum().to_dict(),
+        "summary_stats": df.describe(include='all').to_dict()
+    }
     return profile
-
-
-def clean_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Performs basic data cleaning: dropping nulls, duplicates, and ensuring types/names."""
-    print("--- [TOOL:Data] Cleaning data (handling nulls and duplicates) ---")
-    original_rows = len(df)
-    
-    # 1. CRITICAL FIX: Standardize column names (strip whitespace)
-    df.columns = df.columns.str.strip()
-    
-    # 2. FORCE TYPE CONVERSION
-    # Convert Price and Quantity to numeric, forcing errors to NaN
-    df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
-    df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce')
-    
-    # 3. Fill and Drop (Original logic)
-    df['Quantity'] = df['Quantity'].fillna(df['Quantity'].median())
-    df['Price'] = df['Price'].fillna(df['Price'].mean())
-    df_cleaned = df.dropna().drop_duplicates()
-    
-    print(f"Original rows: {original_rows}, Cleaned rows: {len(df_cleaned)}")
-    return df_cleaned
