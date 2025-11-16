@@ -47,87 +47,89 @@ one agent cleans the data, another analyzes it, another writes the report.
 This produces better insights, faster, and more reliably than a single agent or a static script.
 
 
-# Enterprise Data Analysis Agent Pipeline
-This project showcases a powerful multi-agent system designed for end-to-end data analysis. It automates data preparation, external market research, internal insight generation, visualization, and professional report writing using a combination of sequential and parallel processing.
+# Enterprise Data Analysis Pipeline
 
-# Architecture & Agent Roles
-The pipeline executes in four distinct phases, ensuring data quality is established before parallel processing begins.
+## Project Overview
 
-Phase	               |  Agent Name	          | Core Functionality
-1. Sequential\n Setup	 | Data Profiler Agent	| Reads raw CSV, generates a statistical data profile, and validates initial quality.
-   
-3. Sequential Setup	| Data Cleaner Agent	| Handles nulls (NaN), removes duplicates, and enforces correct data types (e.g., Price, Quantity) for downstream calculations.
-   
-3A. Parallel Execution |	Internal Insights Agent |	Analyzes the cleaned data profile and historical context from the memory bank to generate LLM-powered business insights.
+The Enterprise Data Analysis Pipeline is a modular, multi-agent system designed to automate complex data workflows. It performs end-to-end analysis on raw business data, covering profiling, cleaning, advanced machine learning, visualization, and final report synthesis using the Gemini API for comprehensive, actionable insights.
 
-3B. Parallel Execution |	External Context Agent | Performs a targeted Google Search to acquire current market trends relevant to the data (e.g., Electronics, Food industries).
+The architecture is built on a Sequential/Parallel execution model to maximize efficiency, ensuring that prerequisites (like data cleaning) are met before running concurrent analysis tasks (like visualization and internal insights).
 
-3C. Parallel Execution |	Visualization Agent	| Generates key business charts (sales_trend.png, top_products.png) using Matplotlib, with robust logic for finding sales and date columns.
+## Key Features
 
-5. Sequential Report |	Report Writer Agent |	Consolidates ALL outputs (plots, insights, context) and uses the LLM to write a comprehensive, final analysis report.
+Dynamic Profiling & Cleaning: Automatically loads data, handles missing values, and identifies data types and statistics.
 
-# ⚙️ Setup & Execution
+Modular Agents: Specialized agents for distinct tasks (Profiling, Cleaning, Insights, ML, Viz, Reporting, Recommendations).
 
-## 1. PrerequisitesPython 3.9+ installed.
-## 2. Git installed (for cloning and pushing).
-## 3. A Gemini API Key is required for the LLM agents.
+LLM-Powered Synthesis: Utilizes the Gemini 2.5 Flash model via the google-generativeai SDK to interpret complex data artifacts and synthesize a final strategic report.
 
-# 2. Environment Setup
+ML Integration: Executes predictive modeling (ARIMA forecasting, Anomaly Detection) and saves results to dedicated reports.
 
-Clone the repository and install the required libraries within a virtual environment (venv is recommended)
+Memory Bank: Stores key findings from previous runs, allowing the Internal Insights Agent to provide context and compare current data against historical trends.
 
-:Bash# Clone the repository (if you haven't already)
-git clone <your-repo-url>
-cd Enterprise-Agents
+Visualization: Generates diagnostic plots (Heatmaps, Categorical Comparisons) and saves them as PNG files.
 
-#  Create and activate the virtual environment
 
-python -m venv venv
-.\venv\Scripts\activate# Use 'source venv/bin/activate' on Linux/macOS
+# Setup and Dependencies
 
-#  Install dependencies
+# This project requires Python and several data science and machine learning libraries.
+
+## 1. Requirements
+
+First, ensure you have the necessary libraries installed.
+
 pip install -r requirements.txt
+# If requirements.txt is not present, use:
+# pip install pandas numpy scikit-learn statsmodels matplotlib seaborn google-genai
 
-# 3. Configuration & DataEnsure 
-### your necessary files and folders exist:
 
-File/Folder | 	Path	  |  Purpose	|  Initialization		
+## 2. API Key Configuration
 
-Data File   | 	data/sales_data.csv |	Input data for analysis.	| Must be manually populated.		
+The pipeline relies on the Gemini API for the Insights and Report Writer agents.
 
-Output Folder	| reports/	| Main output directory.	| Created by initial setup.		
+Set Environment Variable: The recommended and most secure approach is to set the GEMINI_API_KEY as an environment variable in your shell or system:
 
-Plot Folder | 	reports/plots/	| Directory for charts.	| Created automatically by the Visualization Agent.		
+export GEMINI_API_KEY="YOUR_API_KEY_HERE"
 
-Memory Bank |	reports/memory_bank.json |	Stores historical insights.	| Must be initialized with {"past_insights": []}.		
 
-# 4. API Key
-## Set your Gemini API key as an environment variable in your terminal session. This must be done every time you open a new terminal.
+Configuration File: The config.py file reads this environment variable to configure the llm_client.py.
 
-Bash# For PowerShell (Windows)
-$env:GEMINI_API_KEY="AIzaSy...YOUR...KEY...HERE"
+Execution
 
-# Running the Pipeline
-Execute the code using the single command below. The terminal output will trace the progress of the sequential and parallel agents.
-The Execution Command Bash#  python run_pipeline.py
- 
-# Expected Output Flow
-A successful run confirms that all phases have been completed, culminating in the final markdown report
-....
-=== 3C. PARALLEL: Visualization Agent Running ===
+## 1. Define the Pipeline
 
---- [TOOL:Viz] Plotting sales over time to reports\plots\sales_trend.png ---
+The file run_pipeline.py defines the flow using a list of steps, specifying whether agents run SEQUENTIAL or PARALLEL.
 
-Calculated TotalSale using Price * Quantity.
+The current execution flow is:
 
---- [TOOL:Viz] Plotting top products to reports\plots\top_products.png ---
+SEQUENTIAL: Data Profiler
 
-Visualization Agent Finished.
-...
-=== 4. SEQUENTIAL: Report Writer Agent Running ===
-Report Writer Agent Finished. Report saved to reports\final_analysis_report.md
+SEQUENTIAL: Data Cleaner
 
---- ✅ Enterprise Data Analysis Pipeline Finished ---
+PARALLEL: Internal Insights, External Context (Mock), Visualization
+
+SEQUENTIAL: ML Agent (Forecasting & Anomaly Detection)
+
+SEQUENTIAL: Recommendation Agent
+
+SEQUENTIAL: Report Writer
+
+## 2. Run the Analysis
+
+Execute the main pipeline script from the root directory:
+
+python run_pipeline.py
+
+
+## 3. Review Results
+
+All outputs are saved to the reports/ directory:
+
+Final Report: reports/final_analysis_report.md
+
+Visualizations: reports/plots/*.png
+
+ML Outputs: reports/ml/*.csv
 
 ### Final Report saved to: reports\final_analysis_report.md
 
