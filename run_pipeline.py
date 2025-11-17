@@ -6,8 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from agents.data_profiler_agent import DataProfilerAgent
 from agents.data_cleaner_agent import DataCleanerAgent
 # Corrected Agent Imports for Parallel Execution
-from agents.internal_insights_agent import InternalInsightsAgent 
-from agents.external_context_agent import ExternalContextAgent 
+from agents.internal_insights_agent import InternalInsightsAgent
+from agents.external_context_agent import ExternalContextAgent
 from agents.visualization_agent import VisualizationAgent
 from agents.ml_agent import MLAgent
 from agents.recommendation_agent import RecommendationAgent
@@ -35,19 +35,19 @@ def setup_environment():
     # Ensure all new and old report folders exist
     os.makedirs("reports", exist_ok=True)
     os.makedirs("reports/plots", exist_ok=True)
-    os.makedirs("reports/ml", exist_ok=True) # New ML output folder
-    
+    os.makedirs("reports/ml", exist_ok=True)  # New ML output folder
+
     memory_path = "reports/memory_bank.json"
 
     if not os.path.exists(memory_path):
         # Initialize memory bank if missing
         with open(memory_path, "w") as f:
-            f.write('{"past_insights": []}') 
+            f.write('{"past_insights": []}')
 
     # Clear old report files before a new run
     if os.path.exists("reports/final_analysis_report.md"):
         os.remove("reports/final_analysis_report.md")
-    
+
     print("--- Environment Setup Complete: reports prepared. ---")
 
 
@@ -70,7 +70,7 @@ def run_agent_wrapper(agent_class, context):
 def main():
     # Placeholder for LLM Client Configuration (assuming it's here in the full file)
     # print("--- LLM Client configured successfully ---")
-    
+
     args = parse_args()
     csv_path = args.file
 
@@ -106,7 +106,7 @@ def main():
     print("\n\n=== 3. PARALLEL EXECUTION: Insights / Search / Viz ===")
 
     parallel_agents = [
-        InternalInsightsAgent, # Renamed from InsightsAgent
+        InternalInsightsAgent,  # Renamed from InsightsAgent
         ExternalContextAgent,  # Renamed from SearchAgent
         VisualizationAgent
     ]
@@ -116,8 +116,8 @@ def main():
             executor.submit(run_agent_wrapper, agent, context)
             for agent in parallel_agents
         ]
-        results = [f.result() for f in futures] # Wait for all results
-    
+        results = [f.result() for f in futures]  # Wait for all results
+
     if all(results):
         print("Parallel Agents Finished.")
     else:
@@ -132,7 +132,7 @@ def main():
         print("ML Agent failed. Aborting recommendations.")
     else:
         print("ML Agent Finished.")
-        
+
         # ==================================================
         # Step 5 — Recommendation Agent (Sequential)
         # ==================================================
@@ -142,7 +142,6 @@ def main():
             print("Recommendation Agent failed.")
         else:
             print("Recommendation Agent Finished.")
-
 
     # ==================================================
     # Step 6 — Report Writer

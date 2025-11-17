@@ -7,3 +7,4 @@ statsmodels
 numpy
 joblib
 streamlit
+tabulate

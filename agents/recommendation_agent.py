@@ -1,40 +1,35 @@
 from tools.recommendation_tools import generate_strategic_recommendations
 
-
 class RecommendationAgent:
     """
-    The Recommendation Agent synthesizes information from all previous steps 
-    (Insights, Search, ML) to generate high-value, actionable recommendations.
+    The Recommendation Agent reads the ML results and creates
+    the final business recommendations.
     """
 
     def __init__(self):
         pass
 
     def run(self, context: dict) -> bool:
-        """
-        Orchestrates the recommendation generation and saves the report path to context.
-        """
-        print("--- [AGENT:Rec] Synthesizing final recommendations ---")
+        print("\n--- [AGENT:REC] Generating strategic recommendations ---")
 
-        if 'ml_reports' not in context:
-            print(
-                "Recommendation Agent Error: Missing ML analysis results. Cannot proceed.")
-            # Still generate a basic recommendation, but flag failure
-            context['recommendation_report'] = "ML results were unavailable, unable to provide data-driven recommendations."
+        if "ml_reports" not in context:
+            print("Recommendation Agent Error: Missing ML reports.")
+            context["recommendation_report"] = (
+                "⚠️ ML results unavailable — unable to generate data-driven recommendations."
+            )
             return False
 
         try:
-            # 1. Generate the recommendation content
-            recommendation_content = generate_strategic_recommendations(
-                context)
+            rec_text = generate_strategic_recommendations(context)
+            context["recommendation_report"] = rec_text
 
-            # 2. Save the content to context
-            context['recommendation_report'] = recommendation_content
-
-            print("--- [AGENT:Rec] Recommendations successfully generated ---")
+            print("--- [AGENT:REC] Recommendations generated successfully ---\n")
             return True
 
         except Exception as e:
             print(f"Recommendation Agent Error: {e}")
-            context['recommendation_report'] = f"Error generating recommendations: {e}"
+
+            context["recommendation_report"] = (
+                f"Error while generating recommendations: {e}"
+            )
             return False

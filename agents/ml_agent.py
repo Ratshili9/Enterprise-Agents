@@ -1,64 +1,88 @@
 import os
 import pandas as pd
 from tools.ml_tools import (
-    prepare_time_series_data, 
-    predict_sales_forecast, 
-    detect_anomalies, 
+    prepare_time_series_data,
+    predict_sales_forecast,
+    detect_anomalies,
     predict_demand_by_category
 )
 
+
 class MLAgent:
     """
-    The Machine Learning Agent executes various predictive models and anomaly detection.
-    
-    It relies on context['cleaned_df'] and stores results in context['ml_reports'].
+    The Machine Learning Agent executes time-series forecasting,
+    anomaly detection, and category-level demand prediction.
+
+    It relies on context['cleaned_df'] and stores its outputs in
+    context['ml_reports'] for the Recommendation Agent.
     """
+
     def __init__(self):
-        # Placeholder for dynamic configuration
         pass
 
     def run(self, context: dict) -> bool:
-        """
-        Runs the full suite of ML analysis.
-        
-        Args:
-            context: The shared dictionary containing 'cleaned_df'.
-            
-        Returns:
-            True if ML analysis was successful, False otherwise.
-        """
-        print("--- [AGENT:ML] Starting Machine Learning Analysis ---")
-        
-        if 'cleaned_df' not in context:
-            print("ML Agent Error: Cleaned DataFrame not found in context.")
+        print("\n--- [AGENT:ML] Starting Machine Learning Analysis ---")
+
+        if "cleaned_df" not in context:
+            print("ML Agent Error: cleaned_df missing in context")
             return False
 
-        df_clean = context['cleaned_df']
+        df_clean = context["cleaned_df"]
         ml_reports = {}
 
+        # -----------------------------------------
         # 1. Prepare Time Series Data
+        # -----------------------------------------
+        print("--- [TOOL:ML] Preparing time series data...")
         df_ts = prepare_time_series_data(df_clean)
-        if df_ts is None:
-            print("ML Agent Warning: Time series data could not be prepared.")
-        
-        # 2. Sales Forecasting (Time Series)
-        print("--- [TOOL:ML] Predicting sales forecast...")
-        forecast_path = predict_sales_forecast(df_ts, steps=14)
-        ml_reports['sales_forecast_path'] = forecast_path
 
+        if df_ts is None or df_ts.empty:
+            print("ML Agent Warning: Could not prepare time-series data.")
+        else:
+            print("ML Agent: Time-series data prepared.")
+
+        # -----------------------------------------
+        # 2. Sales Forecasting
+        # -----------------------------------------
+        print("--- [TOOL:ML] Running sales forecast...")
+        try:
+            forecast_path = predict_sales_forecast(df_ts, steps=14)
+        except Exception as e:
+            print(f"Forecasting failed: {e}")
+            forecast_path = None
+
+        ml_reports["sales_forecast_path"] = forecast_path
+
+        # -----------------------------------------
         # 3. Anomaly Detection
-        print("--- [TOOL:ML] Detecting transaction anomalies...")
-        anomalies_path = detect_anomalies(df_clean)
-        ml_reports['anomalies_path'] = anomalies_path
+        # -----------------------------------------
+        print("--- [TOOL:ML] Running anomaly detection...")
+        try:
+            anomalies_path = detect_anomalies(df_clean)
+        except Exception as e:
+            print(f"Anomaly detection failed: {e}")
+            anomalies_path = None
 
-        # 4. Category Demand Prediction
-        # NOTE: We assume a 'Category' column exists in the data.
-        print("--- [TOOL:ML] Predicting category demand trend...")
-        demand_path = predict_demand_by_category(df_clean, category_col='Category') 
-        ml_reports['demand_predictions_path'] = demand_path
+        ml_reports["anomalies_path"] = anomalies_path
 
-        # Store all paths in context for the Recommendation Agent and Report Writer
-        context['ml_reports'] = ml_reports
-        
-        print(f"--- [AGENT:ML] Analysis complete. {len(ml_reports)} reports generated. ---")
+        # -----------------------------------------
+        # 4. Category Demand Predictions
+        # -----------------------------------------
+        print("--- [TOOL:ML] Predicting demand by category...")
+        try:
+            demand_path = predict_demand_by_category(
+                df_clean, category_col="Category")
+        except Exception as e:
+            print(f"Demand prediction failed: {e}")
+            demand_path = None
+
+        ml_reports["demand_predictions_path"] = demand_path
+
+        # -----------------------------------------
+        # SAVE REPORTS INTO CONTEXT
+        # -----------------------------------------
+        context["ml_reports"] = ml_reports
+
+        print(
+            f"--- [AGENT:ML] Completed. Generated {len(ml_reports)} ML reports. ---\n")
         return True
